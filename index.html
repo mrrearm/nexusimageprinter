@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Image Printer v2.0</title>
+    <title>Nexus Image Printer v2.1</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
         
@@ -24,22 +24,24 @@
             box-sizing: border-box;
         }
         
+        html {
+            height: 100%;
+        }
+
         body {
             font-family: 'Orbitron', monospace;
             background: linear-gradient(145deg, var(--background-start) 0%, var(--background-end) 100%);
             color: var(--text-color);
-            min-height: 100vh;
-            overflow: hidden;
+            min-height: 100%;
+            overflow-x: hidden;
             position: relative;
         }
         
         #background-grid {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
             background-image: 
                 linear-gradient(var(--border-color) 1px, transparent 1px),
                 linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
@@ -60,7 +62,7 @@
             z-index: 2;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: 2rem 1rem;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -99,7 +101,7 @@
             background: var(--panel-bg);
             border: 2px solid var(--border-color);
             border-radius: 20px;
-            padding: 2.5rem;
+            padding: 2rem;
             box-shadow: 0 0 60px var(--shadow-color), inset 0 0 30px rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -150,19 +152,20 @@
             border-style: solid;
             border-color: var(--primary-color);
             box-shadow: 0 0 20px var(--shadow-color);
+            cursor: default;
         }
         
         .image-preview {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            display: none;
             opacity: 0;
             transition: opacity 0.5s ease;
+            display: none;
         }
         .image-preview.loaded {
-            display: block;
             opacity: 1;
+            display: block;
         }
         
         .upload-placeholder {
@@ -175,8 +178,15 @@
             color: var(--primary-color);
             text-align: center;
             padding: 1rem;
+            transition: opacity 0.3s ease;
         }
         
+        /* CORREZIONE: Nasconde il placeholder quando l'immagine è caricata */
+        .image-container.has-image .upload-placeholder {
+            opacity: 0;
+            pointer-events: none;
+        }
+
         .upload-placeholder .scanline {
             position: absolute;
             top: 0; left: 0;
@@ -262,39 +272,41 @@
             font-weight: 700;
         }
         
+        /* CORREZIONE: Layout mobile migliorato */
         @media (max-width: 768px) {
             .container { padding: 1rem; }
-            .main-panel { padding: 1.5rem; }
+            .main-panel { padding: 1.5rem 1rem; }
             .controls { flex-direction: column; align-items: center; gap: 1rem; }
             .btn { width: 100%; max-width: 320px; }
-            .image-container { height: 120px; }
+            .image-container { height: auto; aspect-ratio: 944 / 151; }
         }
         
         #print-area { display: none; }
 
+        /* CORREZIONE: Stampa su foglio singolo */
         @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+            html, body {
+                width: 297mm;
+                height: 210mm;
+            }
             body > *:not(#print-area) {
                 display: none !important;
-                visibility: hidden !important;
             }
             #print-area {
-                display: block !important;
-                position: absolute;
-                top: 0; left: 0;
-                width: 100vw;
-                height: 100vh;
                 display: flex !important;
                 justify-content: center;
                 align-items: center;
+                width: 100%;
+                height: 100%;
             }
             #printImage {
                 width: 944px;
                 height: 151px;
                 object-fit: contain;
-            }
-            @page {
-                size: A4 landscape;
-                margin: 0;
             }
         }
     </style>
@@ -368,8 +380,6 @@
                 }
             }
 
-            // --- Event Listeners ---
-
             loadBtn.addEventListener('click', () => fileInput.click());
             imageContainer.addEventListener('click', () => {
                  if (!imageContainer.classList.contains('has-image')) {
@@ -384,8 +394,6 @@
             });
             
             printBtn.addEventListener('click', () => {
-                // La logica di stampa è ora gestita principalmente dal CSS.
-                // Ci assicuriamo solo che l'immagine sia pronta.
                 if (printImage.src && !printImage.src.endsWith('//:0')) {
                      window.print();
                 }
@@ -401,7 +409,6 @@
                 clearBtn.disabled = true;
             });
 
-            // --- Drag and Drop ---
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 imageContainer.addEventListener(eventName, (e) => {
                     e.preventDefault();
@@ -411,7 +418,9 @@
 
             ['dragenter', 'dragover'].forEach(eventName => {
                 imageContainer.addEventListener(eventName, () => {
-                    imageContainer.classList.add('dragover');
+                    if (!imageContainer.classList.contains('has-image')) {
+                        imageContainer.classList.add('dragover');
+                    }
                 }, false);
             });
 
@@ -422,6 +431,7 @@
             });
 
             imageContainer.addEventListener('drop', (e) => {
+                if (imageContainer.classList.contains('has-image')) return;
                 if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                     fileInput.files = e.dataTransfer.files;
                     handleFile(e.dataTransfer.files[0]);
